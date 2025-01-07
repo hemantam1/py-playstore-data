@@ -33,21 +33,25 @@ def fetch_apps_by_category(category, country, num_results):
     count, batch = 0, 100
     apps_id, apps_list = [], []
     while True:
-        apps = search(
-            query=category,
-            lang="en",
-            country=country,
-            n_hits=num_results,
-        )
-        if not apps:
-            break
-        for app in apps:
-            if app["appId"] not in apps_id:
-                count += 1
-                apps_id.append(app["appId"])
-                apps_list.append(app)
+        try:
+            apps = search(
+                query=category,
+                lang="en",
+                country=country,
+                n_hits=num_results,
+            )
+            if not apps:
+                break
+            for app in apps:
+                if app["appId"] not in apps_id:
+                    count += 1
+                    apps_id.append(app["appId"])
+                    apps_list.append(app)
 
-        num_results += batch
+            num_results += batch
+        except Exception as e:
+            print(f"Error fetching apps by category: {e}")
+            break
         
     print("Total apps: ", count)
     app_details = [fetch_app_details(app["appId"]) for app in apps_list]
