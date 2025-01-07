@@ -17,6 +17,7 @@ def fetch_app_details(package_name):
             "Developer website": details.get("developerWebsite", ""),
             "Developer email": details.get("developerEmail", ""),
             "Developer phone": details.get("developerPhone", ""), #Not available
+            "Developer address": details.get("developerAddress", ""),
             "App URL": details.get("url", ""),
             "Keywords": extract_keywords(description), #Not available
             "Short Description": details.get("summary", ""),
@@ -29,20 +30,30 @@ def fetch_apps_by_category(category, country, num_results):
     """
     Fetch apps from the Play Store for a specific category and country.
     """
-    try:
+    count, batch = 0, 100
+    apps_id, apps_list = [], []
+    while True:
         apps = search(
             query=category,
             lang="en",
             country=country,
             n_hits=num_results,
         )
-        app_details = [fetch_app_details(app["appId"]) for app in apps]
-        return [details for details in app_details if details]
-    except Exception as e:
-        print(f"Error fetching apps by category: {e}")
-        return []
+        if not apps:
+            break
+        for app in apps:
+            if app["appId"] not in apps_id:
+                count += 1
+                apps_id.append(app["appId"])
+                apps_list.append(app)
+
+        num_results += batch
+        
+    print("Total apps: ", count)
+    app_details = [fetch_app_details(app["appId"]) for app in apps_list]
+    return [details for details in app_details if details]
     
-def extract_keywords(text, top_n=5):
+def extract_keywords(text, top_n=15):
     """
     Extract top-n keywords from the given text using CountVectorizer.
     """
@@ -80,10 +91,10 @@ def save_to_csv(file_name, data):
 if __name__ == "__main__":
     category = "Food & Drink"
     country = "qa"
-    num_results = 5
+    num_results = 100
 
-    print(f"Fetching top {num_results} apps in category '{category}' for country code '{country}'...")
+    print(f"Fetching apps in category '{category}' for country code '{country}'...")
     apps_data = fetch_apps_by_category(category, country, num_results)
 
-    output_file = "playstore_apps.csv"
+    output_file = f"{category.replace(' ', '_').lower()}__{country}_file.csv"
     save_to_csv(output_file, apps_data)
