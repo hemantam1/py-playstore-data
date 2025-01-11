@@ -115,6 +115,66 @@ def scrape_play_store_app_details(driver, app_url, category):
         "Short Description": details.get("summary", "")
     }
 
+def get_similar_apps(driver, app_url):
+    """
+    Get the list of similar app URLs from the Play Store.
+
+    Parameters:
+    driver (webdriver): Selenium WebDriver instance.
+    app_url (str): URL of the app on the Play Store.
+
+    Returns:
+    list: List of similar app URLs.
+    """
+    driver.get(app_url)
+    time.sleep(3)
+    similar_app_links = set()
+    
+    try:
+        similar_apps = driver.find_elements(By.XPATH, '//a[@href and contains(@href, "/store/apps/details?id=")]')
+        for app in similar_apps:
+            link = app.get_attribute("href")
+            if "details?id=" in link:
+                similar_app_links.add(link)
+    except Exception as e:
+        print(f"Error fetching similar apps for {app_url}: {e}")
+    
+    return list(similar_app_links)
+
+def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls):
+    """
+    Recursively scrape app details and their similar apps.
+
+    Parameters:
+    driver (webdriver): Selenium WebDriver instance.
+    app_url (str): URL of the app on the Play Store.
+    category (str): Category of the app.
+    visited_urls (set): Set of already visited app URLs to avoid duplicates.
+
+    Returns:
+    list: List of app details with their similar apps.
+    """
+    app_details_list = []
+    if app_url in visited_urls:
+        return app_details_list
+
+    visited_urls.add(app_url)
+    print(f"Scraping details for {app_url}...")
+    print(f"Total visited urls: ", len(visited_urls))
+    
+    # Scrape app details
+    app_details = scrape_play_store_app_details(driver, app_url, category)
+    app_details_list.append(app_details)
+    
+    # Get similar apps
+    similar_apps = get_similar_apps(driver, app_url)
+    for similar_app_url in similar_apps:
+        if similar_app_url not in visited_urls:
+            # Recursive call for each similar app
+            app_details_list.extend(scrape_play_store_with_similar_apps(driver, similar_app_url, category, visited_urls))
+    
+    return app_details_list
+
 def scrape_play_store(category, country_code):
     """
     Scrape app data from the Google Play Store for a given category and country.
@@ -128,7 +188,7 @@ def scrape_play_store(category, country_code):
     """
     driver = create_driver()
     category, country_code = category.upper(), country_code.upper()
-
+    visited_urls = set()
     try:
         url = f"https://play.google.com/store/apps/category/{category}?gl={country_code}"
         driver.get(url)
@@ -143,23 +203,20 @@ def scrape_play_store(category, country_code):
             "top_paid": 2,
         }
         
-        app_links = {"top_free": set(), "top_grossing": set(), "top_paid": set()}
-        
+        app_links = set()
         for tab_name, index in tab_mapping.items():
             driver.execute_script("arguments[0].click();", tabs[index])
             time.sleep(3)
 
             apps = driver.find_elements(By.XPATH, '//a[@href and contains(@href, "/store/apps/details?id=")]')
             for app in apps:
-                app_links[tab_name].add(app.get_attribute("href"))
-        
-        all_apps = {key: list(links) for key, links in app_links.items()}
-        apps_details = []
-        for key,value in all_apps.items():
-            for link in list(value):
-                apps_details.append(scrape_play_store_app_details(driver, link, category))
+                app_links.add(app.get_attribute("href"))
 
-        return [details for details in apps_details if details]
+        all_apps_details = []
+        for app_url in app_links:
+            all_apps_details.extend(scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls))
+        print("------ALL apps------", len(all_apps_details))
+        return all_apps_details
 
     finally:
         driver.quit()
@@ -183,7 +240,7 @@ def get_apps_data(category, country_code):
 
 if __name__ == "__main__":
     category = "MEDICAL" 
-    country_code = "kw"
+    country_code = "ae"
     
     file = get_apps_data(category, country_code)
     print("Data stored successfully in ", file)
