@@ -1,12 +1,36 @@
-import csv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
-from sklearn.feature_extraction.text import CountVectorizer
+from script.utils import save_to_csv, extract_keywords, get_text_from_html
+
+def create_driver():
+    """
+    Create and configure a Selenium WebDriver instance for headless Chrome.
+
+    Returns:
+    webdriver: A configured Selenium WebDriver instance.
+    """
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    driver = webdriver.Chrome(options=chrome_options)
+    return driver
 
 def scrape_play_store_app_details(driver, app_url, category):
-    
+    """
+    Scrape app details from the Google Play Store.
+
+    Parameters:
+    driver (webdriver): Selenium WebDriver instance.
+    app_url (str): URL of the app on the Play Store.
+    category (str): Category of the app.
+
+    Returns:
+    dict: A dictionary containing app details such as category, title, downloads, last update,
+          developer information, app URL, keywords, and summary.
+    """
     driver.get(app_url)
     time.sleep(3)
     
@@ -92,13 +116,18 @@ def scrape_play_store_app_details(driver, app_url, category):
     }
 
 def scrape_play_store(category, country_code):
+    """
+    Scrape app data from the Google Play Store for a given category and country.
+
+    Parameters:
+    category (str): The app category to scrape (e.g., "GAME", "EDUCATION").
+    country_code (str): The country code for localized app data (e.g., "US", "IN").
+
+    Returns:
+    list of dict: A list of dictionaries, each containing app details.
+    """
+    driver = create_driver()
     category, country_code = category.upper(), country_code.upper()
-    # Configure Selenium WebDriver
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    driver = webdriver.Chrome(options=chrome_options)
 
     try:
         url = f"https://play.google.com/store/apps/category/{category}?gl={country_code}"
@@ -107,12 +136,12 @@ def scrape_play_store(category, country_code):
 
         scroll_pause_time = 2
         app_links = set()
-
         for _ in range(20):
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(scroll_pause_time)
 
             apps = driver.find_elements(By.XPATH, '//a[@href and contains(@href, "/store/apps/details?id=")]')
+            
             for app in apps:
                 link = app.get_attribute("href")
                 app_links.add(link)
@@ -124,50 +153,27 @@ def scrape_play_store(category, country_code):
     finally:
         driver.quit()
 
-def get_text_from_html(html):
-    start = html.find('>') + 1
-    end = html.rfind('</div>')
-    return html[start:end].strip()
-
-def save_to_csv(file_name, data):
+def get_apps_data(category, country_code):
     """
-    Save data to a CSV file.
-    """
-    if not data:
-        print("No data to save.")
-        return
+    Retrieve app data from the Google Play Store and save it to a CSV file.
 
-    # Get the headers from the first data entry
-    headers = data[0].keys()
+    Parameters:
+    category (str): The app category to scrape (e.g., "GAME", "EDUCATION").
+    country_code (str): The country code for localized app data (e.g., "US", "IN").
 
-    try:
-        with open(file_name, mode="w", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=headers)
-            writer.writeheader()
-            writer.writerows(data)
-        print(f"Data saved to {file_name}")
-    except Exception as e:
-        print(f"Error saving data to CSV: {e}")
+    Returns:
+    str: The absolute file path of the saved CSV file.
+    """
+    apps_data = scrape_play_store(category, country_code)
+    output_file = f"{category.replace(' ', '_').lower()}__{country_code}_file.csv"
+    file_path = save_to_csv(output_file, apps_data)
+    return file_path
 
-def extract_keywords(text, top_n=15):
-    """
-    Extract top-n keywords from the given text using CountVectorizer.
-    """
-    if not text:
-        return ""
-    try:
-        vectorizer = CountVectorizer(max_features=top_n, stop_words="english")
-        X = vectorizer.fit_transform([text])
-        keywords = vectorizer.get_feature_names_out()
-        return ", ".join(keywords)
-    except Exception as e:
-        print(f"Error extracting keywords: {e}")
-        return ""
-    
+
 if __name__ == "__main__":
     category = "MEDICAL" 
     country_code = "AE"
     
-    apps_data = scrape_play_store(category, country_code)
-    output_file = f"{category.replace(' ', '_').lower()}__{country_code}_file.csv"
-    save_to_csv(output_file, apps_data)
+    file = get_apps_data(category, country_code)
+    print("Data stored successfully in ", file)
+    

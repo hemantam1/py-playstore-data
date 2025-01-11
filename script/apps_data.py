@@ -32,6 +32,7 @@ def fetch_apps_by_category(category, country, num_results):
     """
     count, batch = 0, 100
     apps_id, apps_list = [], []
+    total_apps_searched = 0
     while True:
         try:
             apps = search(
@@ -40,6 +41,7 @@ def fetch_apps_by_category(category, country, num_results):
                 country=country,
                 n_hits=num_results,
             )
+            total_apps_searched += len(apps)
             if not apps:
                 break
             for app in apps:
@@ -53,7 +55,7 @@ def fetch_apps_by_category(category, country, num_results):
             print(f"Error fetching apps by category: {e}")
             break
         
-    print("Total apps: ", count)
+    print("Total total_apps_searched: ", total_apps_searched)
     app_details = [fetch_app_details(app["appId"]) for app in apps_list]
     return [details for details in app_details if details]
     
@@ -93,8 +95,8 @@ def save_to_csv(file_name, data):
         print(f"Error saving data to CSV: {e}")
 
 if __name__ == "__main__":
-    category = "Food & Drink"
-    country = "qa"
+    category = "MEDICAL"
+    country = "QA"
     num_results = 100
 
     print(f"Fetching apps in category '{category}' for country code '{country}'...")
