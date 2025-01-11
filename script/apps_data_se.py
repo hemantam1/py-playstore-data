@@ -134,21 +134,32 @@ def scrape_play_store(category, country_code):
         driver.get(url)
         time.sleep(3)
 
-        scroll_pause_time = 2
-        app_links = set()
-        for _ in range(20):
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(scroll_pause_time)
+        tabs = driver.find_elements(By.XPATH, '//div[contains(@class, "Gggmbb")]')
+
+        # Map the tab names to their corresponding indices
+        tab_mapping = {
+            "top_free": 0,
+            "top_grossing": 1,
+            "top_paid": 2,
+        }
+        
+        app_links = {"top_free": set(), "top_grossing": set(), "top_paid": set()}
+        
+        for tab_name, index in tab_mapping.items():
+            driver.execute_script("arguments[0].click();", tabs[index])
+            time.sleep(3)
 
             apps = driver.find_elements(By.XPATH, '//a[@href and contains(@href, "/store/apps/details?id=")]')
-            
             for app in apps:
-                link = app.get_attribute("href")
-                app_links.add(link)
-            break
+                app_links[tab_name].add(app.get_attribute("href"))
+        
+        all_apps = {key: list(links) for key, links in app_links.items()}
+        apps_details = []
+        for key,value in all_apps.items():
+            for link in list(value):
+                apps_details.append(scrape_play_store_app_details(driver, link, category))
 
-        app_details = [scrape_play_store_app_details(driver, link, category) for link in list(app_links)]
-        return [details for details in app_details if details]
+        return [details for details in apps_details if details]
 
     finally:
         driver.quit()
@@ -172,7 +183,7 @@ def get_apps_data(category, country_code):
 
 if __name__ == "__main__":
     category = "MEDICAL" 
-    country_code = "AE"
+    country_code = "kw"
     
     file = get_apps_data(category, country_code)
     print("Data stored successfully in ", file)
