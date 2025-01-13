@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
-from script.utils import save_to_csv, extract_keywords, get_text_from_html
+from script.utils import save_to_csv, extract_keywords, get_text_from_html, append_to_csv
 
 def create_driver():
     """
@@ -99,9 +99,29 @@ def scrape_play_store_app_details(driver, app_url, category):
         details['summary'] = get_text_from_html(outer_html)
     except:
         details["summary"] = "N/A"
+
+    try:
+        details['rating'] = driver.find_element("xpath", '//div[@class="TT9eCd"]').text
+    except:
+        details["rating"] = "N/A"
+
+    try:
+        details['reviews'] = driver.find_element("xpath", '//div[@class="g1rdde" and text()[contains(., "reviews")]]').text
+    except:
+        details["reviews"] = "N/A"
+
+    try:
+        details['rated_for'] = driver.find_element("xpath", '//span[@itemprop="contentRating"]/span').text
+    except:
+        details["rated_for"] = "N/A"
+
+    try:
+        details['app_icon'] = driver.find_element("xpath", '//img[contains(@class, "T75of")]').get_attribute("src")
+    except:
+        details["app_icon"] = "N/A"
     
     # Return details in the required order
-    return {
+    data = {
         "Category": details.get("genre", ""),
         "App name": details.get("title", ""),
         "Downloads no.": details.get("realInstalls", ""),
@@ -112,8 +132,15 @@ def scrape_play_store_app_details(driver, app_url, category):
         "Developer address": details.get("developerAddress", ""),
         "App URL": details.get("url", ""),
         "Keywords": details.get("keywords", ""),
-        "Short Description": details.get("summary", "")
+        "Short Description": details.get("summary", ""),
+        "Rating": details.get("rating", ""),
+        "Review Count": details.get("reviews", ""),
+        "Rated for": details.get("rated_for", ""),
+        "App icon": details.get("app_icon", "")
     }
+    file_name = f"{category}_ae_file.csv"
+    append_to_csv(file_name, data)
+    return data
 
 def get_similar_apps(driver, app_url):
     """
@@ -127,7 +154,7 @@ def get_similar_apps(driver, app_url):
     list: List of similar app URLs.
     """
     driver.get(app_url)
-    time.sleep(3)
+    time.sleep(2)
     similar_app_links = set()
     
     try:
@@ -239,7 +266,7 @@ def get_apps_data(category, country_code):
 
 
 if __name__ == "__main__":
-    category = "MEDICAL" 
+    category = "business" 
     country_code = "ae"
     
     file = get_apps_data(category, country_code)
