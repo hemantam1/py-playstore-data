@@ -18,7 +18,7 @@ def create_driver():
     driver = webdriver.Chrome(options=chrome_options)
     return driver
 
-def scrape_play_store_app_details(driver, app_url, category):
+def scrape_play_store_app_details(driver, app_url, category, country_code):
     """
     Scrape app details from the Google Play Store.
 
@@ -138,7 +138,7 @@ def scrape_play_store_app_details(driver, app_url, category):
         "Rated for": details.get("rated_for", ""),
         "App icon": details.get("app_icon", "")
     }
-    file_name = f"{category}_ae_file.csv"
+    file_name = f"{category}_{country_code}_file.csv"
     append_to_csv(file_name, data)
     return data
 
@@ -168,7 +168,7 @@ def get_similar_apps(driver, app_url):
     
     return list(similar_app_links)
 
-def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls):
+def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls, country_code):
     """
     Recursively scrape app details and their similar apps.
 
@@ -190,7 +190,7 @@ def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls)
     print(f"Total visited urls: ", len(visited_urls))
     
     # Scrape app details
-    app_details = scrape_play_store_app_details(driver, app_url, category)
+    app_details = scrape_play_store_app_details(driver, app_url, category, country_code)
     app_details_list.append(app_details)
     
     # Get similar apps
@@ -198,7 +198,7 @@ def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls)
     for similar_app_url in similar_apps:
         if similar_app_url not in visited_urls:
             # Recursive call for each similar app
-            app_details_list.extend(scrape_play_store_with_similar_apps(driver, similar_app_url, category, visited_urls))
+            app_details_list.extend(scrape_play_store_with_similar_apps(driver, similar_app_url, category, visited_urls, country_code))
     
     return app_details_list
 
@@ -219,10 +219,11 @@ def scrape_play_store(category, country_code):
     try:
         url = f"https://play.google.com/store/apps/category/{category}?gl={country_code}"
         driver.get(url)
-        time.sleep(3)
+        time.sleep(2)
 
         tabs = driver.find_elements(By.XPATH, '//div[contains(@class, "Gggmbb")]')
-
+        if len(tabs) != 3:
+            raise Exception(f"Please check your category: {category} and country_code: {country_code}")
         # Map the tab names to their corresponding indices
         tab_mapping = {
             "top_free": 0,
@@ -233,7 +234,7 @@ def scrape_play_store(category, country_code):
         app_links = set()
         for tab_name, index in tab_mapping.items():
             driver.execute_script("arguments[0].click();", tabs[index])
-            time.sleep(3)
+            time.sleep(2)
 
             apps = driver.find_elements(By.XPATH, '//a[@href and contains(@href, "/store/apps/details?id=")]')
             for app in apps:
@@ -241,7 +242,7 @@ def scrape_play_store(category, country_code):
 
         all_apps_details = []
         for app_url in app_links:
-            all_apps_details.extend(scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls))
+            all_apps_details.extend(scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls, country_code))
         print("------ALL apps------", len(all_apps_details))
         return all_apps_details
 
@@ -266,7 +267,7 @@ def get_apps_data(category, country_code):
 
 
 if __name__ == "__main__":
-    category = "business" 
+    category = "health_and_fitness" 
     country_code = "ae"
     
     file = get_apps_data(category, country_code)
