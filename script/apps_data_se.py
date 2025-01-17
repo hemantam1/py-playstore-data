@@ -142,7 +142,7 @@ def scrape_play_store_app_details(driver, app_url, category, country_code):
     append_to_csv(file_name, data)
     return data
 
-def get_similar_apps(driver, app_url):
+def get_similar_apps(driver, app_url, category, country_code):
     """
     Get the list of similar app URLs from the Play Store.
 
@@ -162,7 +162,8 @@ def get_similar_apps(driver, app_url):
         for app in similar_apps:
             link = app.get_attribute("href")
             if "details?id=" in link:
-                similar_app_links.add(link)
+                if f"/category/{category}?" in link and f"?gl={country_code}" in link:
+                    similar_app_links.add(link)
     except Exception as e:
         print(f"Error fetching similar apps for {app_url}: {e}")
     
@@ -194,7 +195,7 @@ def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls,
     app_details_list.append(app_details)
     
     # Get similar apps
-    similar_apps = get_similar_apps(driver, app_url)
+    similar_apps = get_similar_apps(driver, app_url, category, country_code)
     for similar_app_url in similar_apps:
         if similar_app_url not in visited_urls:
             # Recursive call for each similar app
