@@ -164,6 +164,7 @@ def get_similar_apps(driver, app_url, category, country_code):
             if "details?id=" in link:
                 if f"/category/{category}?" in link and f"?gl={country_code}" in link:
                     similar_app_links.add(link)
+        return similar_app_links
     except Exception as e:
         print(f"Error fetching similar apps for {app_url}: {e}")
     
@@ -242,8 +243,24 @@ def scrape_play_store(category, country_code):
                 app_links.add(app.get_attribute("href"))
 
         all_apps_details = []
+        
+        # here app_links contains all the apps-links of top-free, top-grossing and top-paid tab
         for app_url in app_links:
-            all_apps_details.extend(scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls, country_code))
+            app_details = scrape_play_store_app_details(driver, app_url, category, country_code)
+            all_apps_details.append(app_details)
+            visited_urls.add(app_url)
+
+        # here all_apps_details contains all the apps-details of top-free, top-grossing and top-paid tab
+        for app_detail in all_apps_details:
+            app_url = app_detail['App URL']
+            similar_apps = get_similar_apps(driver, app_url, category, country_code)
+            for similar_app_url in similar_apps:
+                if similar_app_url not in visited_urls:
+                    # Recursive call for each similar app
+                    all_apps_details.extend(scrape_play_store_with_similar_apps(driver, similar_app_url, category, visited_urls, country_code))
+
+
+            # all_apps_details.extend(scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls, country_code))
         print("------ALL apps------", len(all_apps_details))
         return all_apps_details
 
