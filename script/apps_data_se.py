@@ -3,7 +3,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import time
 from script.utils import save_to_csv, extract_keywords, get_text_from_html, append_to_csv
-recursion_limit = 3
+recursion_limit = 2
+num = 0
+
 def create_driver():
     """
     Create and configure a Selenium WebDriver instance for headless Chrome.
@@ -138,11 +140,14 @@ def scrape_play_store_app_details(driver, app_url, category, country_code):
         "Rated for": details.get("rated_for", ""),
         "App icon": details.get("app_icon", "")
     }
+    global num
+    print("num: ", num)
+    num += 1
     file_name = f"{category}_{country_code}_file.csv"
     append_to_csv(file_name, data)
     return data
 
-def get_similar_apps(driver, app_url, category, country_code, count):
+def get_similar_apps(driver, app_url, category, country_code):
     """
     Get the list of similar app URLs from the Play Store.
 
@@ -182,10 +187,15 @@ def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls,
     Returns:
     list: List of app details with their similar apps.
     """
+    global recursion_limit
+    
     app_details_list = []
-    if count >= recursion_limit:
+    if recursion_limit <= 0:
+        recursion_limit = 1
         return app_details_list
-    if app_url in visited_urls:
+    recursion_limit -= 1
+        
+    if count > 1 and app_url in visited_urls:
         return app_details_list
 
     visited_urls.add(app_url)
@@ -245,12 +255,12 @@ def scrape_play_store(category, country_code):
                 app_links.add(app.get_attribute("href"))
 
         all_apps_details = []
-        
+
         # here app_links contains all the apps-links of top-free, top-grossing and top-paid tab
         for app_url in app_links:
             app_details = scrape_play_store_app_details(driver, app_url, category, country_code)
             all_apps_details.append(app_details)
-            visited_apps.add(app_details.get("App name"))
+            # visited_apps.add(app_details.get("App name"))
             visited_urls.add(app_url)
 
         # here all_apps_details contains all the apps-details of top-free, top-grossing and top-paid tab
@@ -289,7 +299,7 @@ def get_apps_data(category, country_code):
 
 
 if __name__ == "__main__":
-    category = "food_and_drink" 
+    category = "health_and_fitness" 
     country_code = "ae"
     
     file = get_apps_data(category, country_code)
