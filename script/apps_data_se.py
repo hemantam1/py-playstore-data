@@ -174,7 +174,7 @@ def get_similar_apps(driver, app_url, category, country_code):
     
     return list(similar_app_links)
 
-def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls, country_code, count):
+def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls, country_code, count,recursion_limit):
     """
     Recursively scrape app details and their similar apps.
 
@@ -187,21 +187,16 @@ def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls,
     Returns:
     list: List of app details with their similar apps.
     """
-    global recursion_limit
-    
-    app_details_list = []
     if recursion_limit <= 0:
-        recursion_limit = 1
-        return app_details_list
-    recursion_limit -= 1
-        
+        return []
     if count > 1 and app_url in visited_urls:
-        return app_details_list
+        return []
 
     visited_urls.add(app_url)
     print(f"Scraping details for {app_url}...")
     print(f"Total visited urls: ", len(visited_urls))
     
+    app_details_list = []
     # Scrape app details
     app_details = scrape_play_store_app_details(driver, app_url, category, country_code)
     app_details_list.append(app_details)
@@ -211,7 +206,11 @@ def scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls,
     for similar_app_url in similar_apps:
         if similar_app_url not in visited_urls:
             # Recursive call for each similar app
-            app_details_list.extend(scrape_play_store_with_similar_apps(driver, similar_app_url, category, visited_urls, country_code, count=count+1))
+            app_details_list.extend(
+                scrape_play_store_with_similar_apps(
+                    driver, similar_app_url, category, visited_urls, country_code, count=count+1, recursion_limit=recursion_limit-1
+                )
+            )
     
     return app_details_list
 
@@ -262,11 +261,11 @@ def scrape_play_store(category, country_code):
             all_apps_details.append(app_details)
             # visited_apps.add(app_details.get("App name"))
             visited_urls.add(app_url)
-
+        
         # here all_apps_details contains all the apps-details of top-free, top-grossing and top-paid tab
         for app_url in app_links:
-            count = 1
-            all_apps_details.extend(scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls, country_code, count))
+            count, recursion_limit = 1, 3
+            all_apps_details.extend(scrape_play_store_with_similar_apps(driver, app_url, category, visited_urls, country_code, count, recursion_limit))
             # similar_apps = get_similar_apps(driver, app_url, category, country_code)
             # for similar_app_url in similar_apps:
             #     if similar_app_url not in visited_urls:
@@ -299,7 +298,7 @@ def get_apps_data(category, country_code):
 
 
 if __name__ == "__main__":
-    category = "health_and_fitness" 
+    category = "food_and_drink" 
     country_code = "ae"
     
     file = get_apps_data(category, country_code)
